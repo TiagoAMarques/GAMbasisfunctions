@@ -131,16 +131,21 @@ ui <- fluidPage(
           ),
           h2("How this fitted smooth was assembled"),
           fluidRow(
-            column(6, h3("Basis functions in the fitted GAM"),
-                   plotOutput("fitted_basis_plot", height = "390px")),
-            column(6, h3("Weighted contributions and reconstructed smooth"),
-                   plotOutput("fitted_contribution_plot", height = "390px"))
+            column(6, h3("1. Intuitive raw B-spline building blocks"),
+                   plotOutput("raw_fitted_basis_plot", height = "390px")),
+            column(6, h3("2. Centred estimation basis used by mgcv"),
+                   plotOutput("fitted_basis_plot", height = "390px"))
           ),
+          h3("3. Weighted estimation-basis contributions and reconstructed smooth"),
+          plotOutput("fitted_contribution_plot", height = "430px"),
           div(class = "concept-box",
-              "These are not arbitrary demonstration coefficients. They come from the GAM fitted ",
-              "to the simulated observations above. The black curve is the intercept plus the ",
-              "pointwise sum of the coloured weighted basis contributions, and therefore matches ",
-              "the fitted smooth in the main plot."),
+              strong("Why do the two basis panels differ? "),
+              "The first shows familiar localized B-spline bumps as an intuitive coordinate system. ",
+              "The second shows the basis after mgcv has centred and reparameterized it for ",
+              "identifiability, penalization and numerical stability. The fitted coefficients apply ",
+              "to this second basis. In panel 3, the black curve is the intercept plus the pointwise ",
+              "sum of those coloured weighted contributions, and therefore matches the fitted smooth ",
+              "in the main plot."),
           fluidRow(
             column(6, h3("Fit summary"), tableOutput("simulation_summary")),
             column(6, h3("Questions to ask"),
@@ -386,6 +391,19 @@ server <- function(input, output, session) {
     }
     legend("topright", legend_labels, col = legend_cols, lty = legend_lty,
            lwd = legend_lwd, bty = "n", cex = 0.82)
+  }, res = 110)
+
+  output$raw_fitted_basis_plot <- renderPlot({
+    x <- seq(0, 1, length.out = 401)
+    raw_basis <- splines::bs(x, df = input$fit_k, degree = 3,
+                             intercept = TRUE, Boundary.knots = c(0, 1))
+    basis_colours <- grDevices::colorRampPalette(palette_basis)(ncol(raw_basis))
+    matplot(x, raw_basis, type = "l", lty = 1, lwd = 2.5,
+            col = basis_colours, xlab = "Environmental gradient x",
+            ylab = expression(B[j](x)), bty = "l")
+    legend("topright", paste0("B", seq_len(ncol(raw_basis)), "(x)"),
+           col = basis_colours, lty = 1, lwd = 2.5, bty = "n",
+           ncol = if (ncol(raw_basis) > 7) 2 else 1, cex = 0.68)
   }, res = 110)
 
   output$fitted_basis_plot <- renderPlot({
